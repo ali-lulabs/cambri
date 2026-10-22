@@ -46,6 +46,7 @@ Demo logins (password `Demo1234!`):
    - `SUPABASE_SERVICE_ROLE_KEY` (secret; used only on the server for the admin "Add user" screen)
    - `NEXT_PUBLIC_COMPANY_NAME`: shown in the header and on slips
    - `NEXT_PUBLIC_APP_TIMEZONE`, e.g. `Asia/Karachi`. Servers run on UTC, so set this.
+   - `NEXT_PUBLIC_SITE_URL=https://cambri-appliances.netlify.app`, the address slip QR codes open.
    - Optional: `NEXT_PUBLIC_SHOW_DEMO_LOGINS=false` hides the demo-account hint on the login page.
 4. In Supabase *Authentication → URL Configuration*, set the Site URL to your Netlify URL.
 
@@ -62,7 +63,7 @@ Demo logins (password `Demo1234!`):
 
 - **Workflow rules live in the database.** The `transition_ticket()` function in the migration allows only valid next steps, requires a reason to reject, a dispatcher for pickups and returns, and a serial for replacements. It writes the audit event in the same transaction. The UI calls it from [`app/actions/tickets.ts`](app/actions/tickets.ts).
 - **Access control is row-level security.** Reps can only read and create tickets for their own store. Only support and managers can change tickets. Only managers can edit reference data.
-- **Slips** are generated on demand by [`app/api/tickets/[id]/slip/route.tsx`](app/api/tickets/[id]/slip/route.tsx) using [`lib/pdf/Slip.tsx`](lib/pdf/Slip.tsx). The QR code links to a public, read-only verify page backed by the `get_ticket_by_token()` function, which exposes only a few fields.
+- **Slips** are generated on demand by [`app/api/tickets/[id]/slip/route.tsx`](app/api/tickets/[id]/slip/route.tsx) using [`lib/pdf/Slip.tsx`](lib/pdf/Slip.tsx). The QR code links to `NEXT_PUBLIC_SITE_URL/verify/<token>`, a public, read-only page backed by the `get_ticket_by_token()` function, which exposes only a few fields.
 
 ## Not in this MVP
 
