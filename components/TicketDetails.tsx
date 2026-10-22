@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { CATEGORY_LABEL } from "@/lib/tickets/status";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, fmtRs } from "@/lib/format";
 import type { Dispatcher, TicketFull } from "@/lib/types";
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -39,6 +39,27 @@ export function TicketDetails({ ticket, showStore = true }: { ticket: TicketFull
         {t.creator?.full_name ?? "—"} <span className="text-slate-500">· {fmtDateTime(t.created_at)}</span>
       </Row>
       {t.approver && <Row label="Approved by">{t.approver.full_name}</Row>}
+      <Row label="Warranty">
+        {t.under_warranty === null ? (
+          <span className="text-slate-500">Decided by support on approval</span>
+        ) : t.under_warranty ? (
+          "Under warranty · no charge"
+        ) : (
+          <span className="font-medium">Out of warranty · {fmtRs(t.charge_amount)} charge</span>
+        )}
+      </Row>
+      {t.under_warranty === false && (
+        <Row label="Payment">
+          {t.payment_received_at ? (
+            <span className="text-emerald-700">
+              Received {fmtDateTime(t.payment_received_at)}
+              {t.payer && <span className="text-slate-500"> · recorded by {t.payer.full_name}</span>}
+            </span>
+          ) : (
+            <span className="font-medium text-orange-700">Not received yet</span>
+          )}
+        </Row>
+      )}
       {t.rejection_reason && (
         <Row label="Rejection reason">
           <span className="text-red-700">{t.rejection_reason}</span>

@@ -66,6 +66,12 @@ export type Ticket = {
   created_at: string;
   updated_at: string;
   closed_at: string | null;
+  /** null = not decided yet (before approval). */
+  under_warranty: boolean | null;
+  /** Rupees to charge the customer when out of warranty. */
+  charge_amount: number | null;
+  payment_received_at: string | null;
+  payment_received_by: string | null;
 };
 
 /** Ticket with related rows, as loaded by getTicket(). */
@@ -76,6 +82,7 @@ export type TicketFull = Ticket & {
   ret: Dispatcher | null;
   creator: { full_name: string } | null;
   approver: { full_name: string } | null;
+  payer: { full_name: string } | null;
 };
 
 export type TicketEvent = {
@@ -83,6 +90,8 @@ export type TicketEvent = {
   ticket_id: string;
   from_status: TicketStatus | null;
   to_status: TicketStatus;
+  /** status = workflow step; warranty/payment = charge changes (status unchanged). */
+  kind: "status" | "warranty" | "payment";
   note: string | null;
   created_at: string;
   actor: { full_name: string; role: Role } | null;

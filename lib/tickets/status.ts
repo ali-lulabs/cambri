@@ -66,6 +66,8 @@ export const QUEUE_TABS = [
   { key: "plant", label: "At plant", statuses: ["PICKED_UP", "RECEIVED_AT_PLANT", "REPAIRED", "REPLACED"] },
   { key: "return", label: "Out for return", statuses: ["RETURN_SCHEDULED"] },
   { key: "closed", label: "Closed", statuses: ["DELIVERED", "REJECTED"] },
+  // Special: out-of-warranty jobs whose payment hasn't been received (any status).
+  { key: "unpaid", label: "Payment due", statuses: [] },
   { key: "all", label: "All", statuses: [] },
 ] as const satisfies readonly { key: string; label: string; statuses: readonly TicketStatus[] }[];
 

@@ -1,6 +1,6 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { TicketFull } from "@/lib/types";
-import { TIME_ZONE } from "@/lib/format";
+import { TIME_ZONE, fmtRs } from "@/lib/format";
 
 const BRAND = "#163f64";
 const MUTED = "#64748b";
@@ -113,6 +113,22 @@ export function Slip({ type, ticket: t, company, qrDataUrl, verifyUrl, issuedAt,
         <View style={s.section}>
           <Text style={s.sectionTitle}>Authorization</Text>
           <Row label="Approved by" value={t.approver?.full_name} />
+          <Row
+            label="Warranty"
+            value={
+              t.under_warranty === false
+                ? `Out of warranty - customer charge ${fmtRs(t.charge_amount)}`
+                : t.under_warranty
+                  ? "Under warranty - no charge"
+                  : "-"
+            }
+          />
+          {!pickup && t.under_warranty === false && (
+            <Row
+              label="Payment"
+              value={t.payment_received_at ? "Received" : `PENDING - ${fmtRs(t.charge_amount)} to be collected`}
+            />
+          )}
           <Row label="Slip issued" value={`${issued} by ${issuedBy}`} />
         </View>
 

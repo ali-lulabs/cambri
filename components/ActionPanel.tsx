@@ -2,7 +2,8 @@
 
 import { useActionState, useState, type ReactNode } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { transitionTicket } from "@/app/actions/tickets";
+import { approveTicket, transitionTicket } from "@/app/actions/tickets";
+import { WarrantyFields } from "./WarrantyFields";
 import type { Dispatcher, TicketStatus } from "@/lib/types";
 import { Alert, Button, Field, Input, Select, Textarea } from "./ui";
 import { SubmitButton } from "./SubmitButton";
@@ -21,8 +22,7 @@ function Steps({ ticketId, status, dispatchers }: Props) {
   switch (status) {
     case "SUBMITTED":
       return mode === "a" ? (
-        <StepForm ticketId={ticketId} to="APPROVED" title="Review this request" help="Approve to arrange a pickup from the store.">
-          <NoteField placeholder="Optional note, e.g. warranty checked" />
+        <ApproveForm ticketId={ticketId}>
           <div className="flex gap-2">
             <SubmitButton variant="success" className="flex-1" pendingText="Approving…">
               Approve
@@ -31,7 +31,7 @@ function Steps({ ticketId, status, dispatchers }: Props) {
               Reject…
             </Button>
           </div>
-        </StepForm>
+        </ApproveForm>
       ) : (
         <StepForm ticketId={ticketId} to="REJECTED" title="Reject request" help="The store rep will see this reason.">
           <NoteField required label="Reason" placeholder="e.g. Physical damage, not covered by warranty" />
@@ -160,6 +160,23 @@ function StepForm({
         <p className="text-sm text-slate-500">{help}</p>
       </div>
       {state?.error && <Alert>{state.error}</Alert>}
+      {children}
+    </form>
+  );
+}
+
+function ApproveForm({ ticketId, children }: { ticketId: string; children: ReactNode }) {
+  const [state, action] = useActionState(approveTicket, undefined);
+  return (
+    <form action={action} className="space-y-4">
+      <input type="hidden" name="ticket_id" value={ticketId} />
+      <div>
+        <p className="font-medium text-slate-900">Review this request</p>
+        <p className="text-sm text-slate-500">Approve to arrange a pickup from the store.</p>
+      </div>
+      {state?.error && <Alert>{state.error}</Alert>}
+      <WarrantyFields />
+      <NoteField placeholder="Optional note, e.g. invoice checked" />
       {children}
     </form>
   );

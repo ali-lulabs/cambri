@@ -6,6 +6,7 @@ import { QUEUE_TABS } from "@/lib/tickets/status";
 import { fmtDateTime, timeAgo } from "@/lib/format";
 import type { TicketStatus } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ChargeBadge } from "@/components/ChargeBadge";
 import { TicketCard } from "@/components/TicketCard";
 import { Card, EmptyState, Input, PageHeader, cn } from "@/components/ui";
 
@@ -19,22 +20,26 @@ export default async function SupportQueue({ searchParams }: { searchParams: Pro
 
   const supabase = await createClient();
   const [{ data: all }, listRes] = await Promise.all([
-    supabase.from("tickets").select("status"),
+    supabase.from("tickets").select("status, under_warranty, payment_received_at"),
     (() => {
       let query = supabase.from("tickets").select(TICKET_LIST_SELECT).order("updated_at", { ascending: tabKey === "review" });
       if (tab.statuses.length) query = query.in("status", tab.statuses as unknown as TicketStatus[]);
+      if (tabKey === "unpaid") query = query.eq("under_warranty", false).is("payment_received_at", null).neq("status", "REJECTED");
       if (q) query = query.or(`ticket_no.ilike.%${q}%,serial_no.ilike.%${q}%`);
       return query.limit(200);
     })(),
   ]);
   const tickets = (listRes.data ?? []) as unknown as TicketListRow[];
 
+  const rows = all ?? [];
   const counts = Object.fromEntries(
     QUEUE_TABS.map((t) => [
       t.key,
-      t.statuses.length
-        ? (all ?? []).filter((r) => (t.statuses as readonly string[]).includes(r.status)).length
-        : (all ?? []).length,
+      t.key === "unpaid"
+        ? rows.filter((r) => r.under_warranty === false && !r.payment_received_at && r.status !== "REJECTED").length
+        : t.statuses.length
+          ? rows.filter((r) => (t.statuses as readonly string[]).includes(r.status)).length
+          : rows.length,
     ]),
   );
 
@@ -61,7 +66,11 @@ export default async function SupportQueue({ searchParams }: { searchParams: Pro
                 <span
                   className={cn(
                     "rounded-full px-1.5 text-xs tabular-nums",
-                    t.key === "review" && counts[t.key] > 0 ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-600",
+                    (t.key === "review" || t.key === "unpaid") && counts[t.key] > 0
+                      ? t.key === "review"
+                        ? "bg-amber-500 text-white"
+                        : "bg-orange-500 text-white"
+                      : "bg-slate-200 text-slate-600",
                   )}
                 >
                   {counts[t.key]}
@@ -101,6 +110,7 @@ export default async function SupportQueue({ searchParams }: { searchParams: Pro
                   <th className="px-4 py-3">Product</th>
                   <th className="px-4 py-3">Store</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Charge</th>
                   <th className="px-4 py-3 text-right">{tabKey === "review" ? "Logged" : "Last update"}</th>
                 </tr>
               </thead>
@@ -119,6 +129,9 @@ export default async function SupportQueue({ searchParams }: { searchParams: Pro
                     <td className="px-4 py-3 text-slate-700">{t.store?.name}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={t.status} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <ChargeBadge {...t} />
                     </td>
                     <td className="px-4 py-3 text-right text-slate-500" title={fmtDateTime(tabKey === "review" ? t.created_at : t.updated_at)}>
                       {timeAgo(tabKey === "review" ? t.created_at : t.updated_at)}

@@ -4,6 +4,7 @@ import { ChevronLeft, FileText } from "lucide-react";
 import { getActiveDispatchers, getTicket } from "@/lib/tickets/queries";
 import { fmtDateTime } from "@/lib/format";
 import { ActionPanel } from "@/components/ActionPanel";
+import { ChargePanel } from "@/components/ChargePanel";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StageProgress } from "@/components/StageProgress";
 import { TicketDetails } from "@/components/TicketDetails";
@@ -62,6 +63,12 @@ export default async function SupportTicket({ params }: { params: Promise<{ id: 
           <Card className="p-5">
             <ActionPanel ticketId={ticket.id} status={ticket.status} dispatchers={dispatchers} />
           </Card>
+          {ticket.under_warranty !== null && (
+            <Card>
+              <CardHeader title="Warranty & payment" />
+              <ChargePanel ticket={ticket} />
+            </Card>
+          )}
           {slips.length > 0 && (
             <Card>
               <CardHeader title="Slips" subtitle="Print, or show on a phone. The store can scan the QR code to check it." />

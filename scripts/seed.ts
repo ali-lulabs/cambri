@@ -94,7 +94,7 @@ const JOURNEYS: { path: string[]; ageDays: number }[] = [
 ];
 
 const NOTES: Record<string, string> = {
-  APPROVED: "Within warranty. Approved for pickup.",
+  APPROVED: "Approved for pickup.",
   REJECTED: "Physical damage from customer misuse; not covered by warranty.",
   PICKUP_SCHEDULED: "Pickup slip issued.",
   PICKED_UP: "Collected from store against slip.",
@@ -173,6 +173,10 @@ async function main() {
       const pickup = dispatchers[i % dispatchers.length].id;
       const ret = dispatchers[(i + 1) % dispatchers.length].id;
       const reached = (s: string) => j.path.includes(s);
+      // Every third approved ticket is an out-of-warranty paid repair; paid once it is on its way back.
+      const approved = reached("APPROVED");
+      const charge = approved && i % 3 === 1 ? [1500, 2500, 3200, 4800][i % 4] : null;
+      const paid = charge !== null && (reached("RETURN_SCHEDULED") || reached("DELIVERED"));
 
       // Steps are spread evenly between creation and "now - 1h".
       const span = Math.max(now - 3_600_000 - createdAt.getTime(), 3_600_000);
@@ -198,6 +202,10 @@ async function main() {
             resolution: reached("REPLACED") ? "replace" : reached("REPAIRED") ? "repair" : null,
             replacement_serial_no: reached("REPLACED") ? `${product.model_code}-R${(910000 + i).toString()}` : null,
             closed_at: reached("DELIVERED") || reached("REJECTED") ? stepAt(j.path.length - 1).toISOString() : null,
+            under_warranty: approved ? charge === null : null,
+            charge_amount: charge,
+            payment_received_at: paid ? stepAt(j.path.length - 1).toISOString() : null,
+            payment_received_by: paid ? supportId : null,
           })
           .select("id")
           .single(),
@@ -208,12 +216,38 @@ async function main() {
       const events = j.path.slice(1).map((to, k) => ({
         ticket_id: ticket.id,
         actor_id: supportId,
+        kind: "status",
         from_status: j.path[k],
         to_status: to,
         note: NOTES[to] ?? null,
         created_at: stepAt(k + 1).toISOString(),
       }));
-      if (events.length) check(await db.from("ticket_events").insert(events), "insert events");
+      const rs = (n: number) => "Rs " + n.toLocaleString("en-PK");
+      const extra = [];
+      if (approved) {
+        extra.push({
+          ticket_id: ticket.id,
+          actor_id: supportId,
+          from_status: "SUBMITTED",
+          to_status: "SUBMITTED",
+          kind: "warranty",
+          note: charge === null ? "Under warranty, no charge" : `Out of warranty, charge ${rs(charge)}`,
+          created_at: new Date(stepAt(1).getTime() - 60_000).toISOString(),
+        });
+      }
+      if (paid) {
+        const last = j.path[j.path.length - 1];
+        extra.push({
+          ticket_id: ticket.id,
+          actor_id: supportId,
+          from_status: last,
+          to_status: last,
+          kind: "payment",
+          note: `Payment of ${rs(charge!)} received`,
+          created_at: stepAt(j.path.length - 1).toISOString(),
+        });
+      }
+      if (events.length + extra.length) check(await db.from("ticket_events").insert([...events, ...extra]), "insert events");
     }
     console.log(`Created ${JOURNEYS.length} sample tickets.`);
   }

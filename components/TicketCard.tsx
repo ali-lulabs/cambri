@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { TicketListRow } from "@/lib/tickets/queries";
 import { timeAgo } from "@/lib/format";
 import { StatusBadge } from "./StatusBadge";
+import { ChargeBadge } from "./ChargeBadge";
 
 /** Compact ticket row for phone screens. */
 export function TicketCard({ t, href }: { t: TicketListRow; href: string }) {
@@ -18,7 +19,10 @@ export function TicketCard({ t, href }: { t: TicketListRow; href: string }) {
         </div>
         <StatusBadge status={t.status} />
       </div>
-      <p className="mt-3 text-xs text-slate-400">Updated {timeAgo(t.updated_at)}</p>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <p className="text-xs text-slate-400">Updated {timeAgo(t.updated_at)}</p>
+        <ChargeBadge {...t} />
+      </div>
     </Link>
   );
 }

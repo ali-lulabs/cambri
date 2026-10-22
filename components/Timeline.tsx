@@ -21,10 +21,18 @@ export function Timeline({ events }: { events: TicketEvent[] }) {
       {items.map((e, i) => (
         <li key={e.id} className="relative flex gap-3">
           {i < items.length - 1 && <span className="absolute left-[5px] top-4 h-[calc(100%+0.5rem)] w-px bg-slate-200" aria-hidden />}
-          <span className={cn("mt-1.5 size-[11px] shrink-0 rounded-full ring-4 ring-white", DOT[STATUS_TONE[e.to_status]])} aria-hidden />
+          <span
+            className={cn(
+              "mt-1.5 size-[11px] shrink-0 rounded-full ring-4 ring-white",
+              e.kind === "payment" ? "bg-emerald-500" : e.kind === "warranty" ? "bg-orange-400" : DOT[STATUS_TONE[e.to_status]],
+            )}
+            aria-hidden
+          />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <p className="text-sm font-medium text-slate-900">{EVENT_LABEL[e.to_status]}</p>
+              <p className="text-sm font-medium text-slate-900">
+                {e.kind === "status" || !e.kind ? EVENT_LABEL[e.to_status] : e.note}
+              </p>
               <time className="text-xs tabular-nums text-slate-500" dateTime={e.created_at}>
                 {fmtDateTime(e.created_at)}
               </time>
@@ -32,7 +40,9 @@ export function Timeline({ events }: { events: TicketEvent[] }) {
             <p className="text-xs text-slate-500">
               {e.actor ? `${e.actor.full_name} · ${ROLE_LABEL[e.actor.role]}` : "System"}
             </p>
-            {e.note && <p className="mt-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700">{e.note}</p>}
+            {e.note && e.kind === "status" && (
+              <p className="mt-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700">{e.note}</p>
+            )}
           </div>
         </li>
       ))}

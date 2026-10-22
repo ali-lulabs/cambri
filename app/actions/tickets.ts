@@ -59,3 +59,73 @@ export async function transitionTicket(_prev: FormState, formData: FormData): Pr
   revalidatePath("/support");
   return { ok: true };
 }
+
+function parseCharge(formData: FormData): { under_warranty: boolean | null; amount: number | null; error?: string } {
+  const w = text(formData, "warranty");
+  if (w !== "yes" && w !== "no") return { under_warranty: null, amount: null, error: "Choose whether the unit is under warranty." };
+  if (w === "yes") return { under_warranty: true, amount: null };
+  const amount = Number(text(formData, "charge_amount").replace(/[,\s]/g, "").replace(/^rs\.?/i, ""));
+  if (!Number.isFinite(amount) || amount <= 0) return { under_warranty: false, amount: null, error: "Enter the amount to charge the customer." };
+  return { under_warranty: false, amount: Math.round(amount * 100) / 100 };
+}
+
+function revalidateTicket(ticketId: string) {
+  revalidatePath(`/support/tickets/${ticketId}`);
+  revalidatePath("/support");
+  revalidatePath("/manager");
+}
+
+/** Approve with a warranty decision (and charge if out of warranty). */
+export async function approveTicket(_prev: FormState, formData: FormData): Promise<FormState> {
+  const ticketId = text(formData, "ticket_id");
+  const charge = parseCharge(formData);
+  if (charge.error) return { error: charge.error };
+
+  const supabase = await createClient();
+  const { error: chargeErr } = await supabase.rpc("set_ticket_charge", {
+    p_ticket_id: ticketId,
+    p_under_warranty: charge.under_warranty,
+    p_charge_amount: charge.amount,
+  });
+  if (chargeErr) return { error: chargeErr.message };
+
+  const { error } = await supabase.rpc("transition_ticket", {
+    p_ticket_id: ticketId,
+    p_to: "APPROVED",
+    p_note: text(formData, "note") || null,
+  });
+  if (error) return { error: error.message };
+
+  revalidateTicket(ticketId);
+  return { ok: true };
+}
+
+/** Change warranty / charge on an open ticket. */
+export async function saveCharge(_prev: FormState, formData: FormData): Promise<FormState> {
+  const ticketId = text(formData, "ticket_id");
+  const charge = parseCharge(formData);
+  if (charge.error) return { error: charge.error };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_ticket_charge", {
+    p_ticket_id: ticketId,
+    p_under_warranty: charge.under_warranty,
+    p_charge_amount: charge.amount,
+  });
+  if (error) return { error: error.message };
+  revalidateTicket(ticketId);
+  return { ok: true, message: "Saved." };
+}
+
+/** Mark the customer's payment as received, or undo. */
+export async function setPayment(_prev: FormState, formData: FormData): Promise<FormState> {
+  const ticketId = text(formData, "ticket_id");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_ticket_payment", {
+    p_ticket_id: ticketId,
+    p_received: text(formData, "received") === "true",
+  });
+  if (error) return { error: error.message };
+  revalidateTicket(ticketId);
+  return { ok: true };
+}
