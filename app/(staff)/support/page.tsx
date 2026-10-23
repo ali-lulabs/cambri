@@ -25,8 +25,8 @@ export default async function SupportQueue({ searchParams }: { searchParams: Pro
   const q = (sp.q ?? "").trim().replace(/[%,()]/g, "");
 
   const supabase = await createClient();
-  const myStores = role === "area_rep" ? await getMyStores() : [];
-  const [{ data: all }, listRes] = await Promise.all([
+  const [myStores, { data: all }, listRes] = await Promise.all([
+    role === "area_rep" ? getMyStores() : Promise.resolve([]),
     supabase.from("tickets").select("status, under_warranty, payment_received_at"),
     (() => {
       let query = supabase.from("tickets").select(TICKET_LIST_SELECT).order("updated_at", { ascending: tabKey === "review" });

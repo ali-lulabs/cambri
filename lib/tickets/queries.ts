@@ -13,14 +13,17 @@ const TICKET_SELECT = `*,
 /** Loads a ticket and its timeline. Returns null if missing or not visible to this user. */
 export async function getTicket(id: string): Promise<{ ticket: TicketFull; events: TicketEvent[] } | null> {
   const supabase = await createClient();
-  const { data: ticket } = await supabase.from("tickets").select(TICKET_SELECT).eq("id", id).maybeSingle();
+  // Both queries run in parallel; event rows are only visible when the ticket is.
+  const [{ data: ticket }, { data: events }] = await Promise.all([
+    supabase.from("tickets").select(TICKET_SELECT).eq("id", id).maybeSingle(),
+    supabase
+      .from("ticket_events")
+      .select("id, ticket_id, from_status, to_status, kind, note, created_at, actor:profiles(full_name, role)")
+      .eq("ticket_id", id)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true }),
+  ]);
   if (!ticket) return null;
-  const { data: events } = await supabase
-    .from("ticket_events")
-    .select("id, ticket_id, from_status, to_status, kind, note, created_at, actor:profiles(full_name, role)")
-    .eq("ticket_id", id)
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
   return { ticket: ticket as unknown as TicketFull, events: (events ?? []) as unknown as TicketEvent[] };
 }
 

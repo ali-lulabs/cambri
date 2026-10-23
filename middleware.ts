@@ -23,10 +23,10 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // Refreshes the session cookie if needed.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Refreshes the session cookie if needed, then verifies the token locally
+  // (ES256 signing keys, cached), with no round trip to Supabase Auth.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub;
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));

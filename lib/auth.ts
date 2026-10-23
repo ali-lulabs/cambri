@@ -11,14 +11,14 @@ export const STAFF_ROLES: Role[] = ["area_rep", "support", "manager"];
 /** The signed-in user's profile, or null. Cached per request. */
 export const getProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // Verified locally against Supabase's published signing keys; no Auth round trip.
+  const { data: auth } = await supabase.auth.getClaims();
+  const userId = auth?.claims?.sub;
+  if (!userId) return null;
   const { data } = await supabase
     .from("profiles")
     .select("id, full_name, email, role, store_id, store:stores!profiles_store_id_fkey(name, retailer, city)")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle();
   return (data as Profile | null) ?? null;
 });
