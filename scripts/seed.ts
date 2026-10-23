@@ -54,7 +54,15 @@ const DISPATCHERS = [
   { name: "Usman Tariq", phone: "0301 5550103", vehicle: "Bike · LEB-4419" },
 ];
 
-type DemoUser = { email: string; full_name: string; role: "rep" | "support" | "manager"; storeIndex?: number };
+type DemoUser = {
+  email: string;
+  full_name: string;
+  role: "rep" | "area_rep" | "support" | "manager";
+  /** Store reps: their store. */
+  storeIndex?: number;
+  /** Area reps: stores they cover (only filled where a store has no area rep yet). */
+  covers?: number[];
+};
 const USERS: DemoUser[] = [
   { email: "manager@example.com", full_name: "Ayesha Siddiqui", role: "manager" },
   { email: "support@example.com", full_name: "Fahad Mirza", role: "support" },
@@ -62,6 +70,8 @@ const USERS: DemoUser[] = [
   { email: "rep.riverside@example.com", full_name: "Hira Noor", role: "rep", storeIndex: 1 },
   { email: "rep.valuehub@example.com", full_name: "Danish Akram", role: "rep", storeIndex: 2 },
   { email: "rep.north@example.com", full_name: "Mariam Javed", role: "rep", storeIndex: 3 },
+  { email: "area.central@example.com", full_name: "Imran Qureshi", role: "area_rep", covers: [0, 1] },
+  { email: "area.north@example.com", full_name: "Sana Farooq", role: "area_rep", covers: [2, 3] },
 ];
 
 const ISSUES = [
@@ -119,14 +129,18 @@ async function ensureUsers(storeIds: string[]) {
       );
       id = created.user!.id;
     }
+    // Only create missing profiles, so manual edits to demo accounts are kept.
     check(
-      await db.from("profiles").upsert({
-        id,
-        email: u.email,
-        full_name: u.full_name,
-        role: u.role,
-        store_id: u.storeIndex === undefined ? null : storeIds[u.storeIndex],
-      }),
+      await db.from("profiles").upsert(
+        {
+          id,
+          email: u.email,
+          full_name: u.full_name,
+          role: u.role,
+          store_id: u.storeIndex === undefined ? null : storeIds[u.storeIndex],
+        },
+        { onConflict: "id", ignoreDuplicates: true },
+      ),
       `profile ${u.email}`,
     );
     ids[u.email] = id;
@@ -158,6 +172,19 @@ async function main() {
 
   const userIds = await ensureUsers(storeIds);
   const supportId = userIds["support@example.com"];
+
+  // Assign area reps to stores that don't have one yet (safe on live data).
+  const areaRepByStore: Record<string, string> = {};
+  for (const u of USERS.filter((x) => x.role === "area_rep")) {
+    for (const idx of u.covers ?? []) {
+      const sid = storeIds[idx];
+      areaRepByStore[sid] = userIds[u.email];
+      check(
+        await db.from("stores").update({ area_rep_id: userIds[u.email] }).eq("id", sid).is("area_rep_id", null),
+        `assign area rep ${u.email}`,
+      );
+    }
+  }
   const repByStore = USERS.filter((u) => u.role === "rep").map((u) => userIds[u.email]);
 
   const { count } = await db.from("tickets").select("id", { count: "exact", head: true });
@@ -177,6 +204,7 @@ async function main() {
       const approved = reached("APPROVED");
       const charge = approved && i % 3 === 1 ? [1500, 2500, 3200, 4800][i % 4] : null;
       const paid = charge !== null && (reached("RETURN_SCHEDULED") || reached("DELIVERED"));
+      const reviewerId = areaRepByStore[storeIds[storeIdx]] ?? supportId;
 
       // Steps are spread evenly between creation and "now - 1h".
       const span = Math.max(now - 3_600_000 - createdAt.getTime(), 3_600_000);
@@ -195,7 +223,7 @@ async function main() {
             created_by: repByStore[storeIdx],
             created_at: createdAt.toISOString(),
             updated_at: stepAt(j.path.length - 1).toISOString(),
-            approved_by: reached("APPROVED") ? supportId : null,
+            approved_by: reached("APPROVED") ? reviewerId : null,
             rejection_reason: reached("REJECTED") ? NOTES.REJECTED : null,
             pickup_dispatcher_id: reached("PICKUP_SCHEDULED") ? pickup : null,
             return_dispatcher_id: reached("RETURN_SCHEDULED") ? ret : null,
@@ -205,7 +233,7 @@ async function main() {
             under_warranty: approved ? charge === null : null,
             charge_amount: charge,
             payment_received_at: paid ? stepAt(j.path.length - 1).toISOString() : null,
-            payment_received_by: paid ? supportId : null,
+            payment_received_by: paid ? reviewerId : null,
           })
           .select("id")
           .single(),
@@ -215,7 +243,7 @@ async function main() {
       // The insert trigger logged SUBMITTED; add the remaining steps.
       const events = j.path.slice(1).map((to, k) => ({
         ticket_id: ticket.id,
-        actor_id: supportId,
+        actor_id: to === "APPROVED" || to === "REJECTED" ? reviewerId : supportId,
         kind: "status",
         from_status: j.path[k],
         to_status: to,
@@ -227,7 +255,7 @@ async function main() {
       if (approved) {
         extra.push({
           ticket_id: ticket.id,
-          actor_id: supportId,
+          actor_id: reviewerId,
           from_status: "SUBMITTED",
           to_status: "SUBMITTED",
           kind: "warranty",
@@ -239,7 +267,7 @@ async function main() {
         const last = j.path[j.path.length - 1];
         extra.push({
           ticket_id: ticket.id,
-          actor_id: supportId,
+          actor_id: reviewerId,
           from_status: last,
           to_status: last,
           kind: "payment",

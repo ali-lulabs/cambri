@@ -9,13 +9,20 @@ import { SubmitButton } from "./SubmitButton";
 import { WarrantyFields } from "./WarrantyFields";
 
 /** Warranty decision, charge and payment for an approved ticket. */
-export function ChargePanel({ ticket }: { ticket: TicketFull }) {
+export function ChargePanel({ ticket, editable }: { ticket: TicketFull; editable: boolean }) {
   // Remount when the saved values change so the form resets.
-  return <Inner key={`${ticket.under_warranty}-${ticket.charge_amount}-${ticket.payment_received_at}`} ticket={ticket} />;
+  return (
+    <Inner
+      key={`${ticket.under_warranty}-${ticket.charge_amount}-${ticket.payment_received_at}`}
+      ticket={ticket}
+      editable={editable}
+    />
+  );
 }
 
-function Inner({ ticket: t }: { ticket: TicketFull }) {
-  const open = t.status !== "DELIVERED" && t.status !== "REJECTED";
+/** editable = store's area rep or a manager; support sees it read-only. */
+function Inner({ ticket: t, editable }: { ticket: TicketFull; editable: boolean }) {
+  const open = t.status !== "DELIVERED" && t.status !== "REJECTED" && editable;
   const [editing, setEditing] = useState(false);
   const [saveState, saveAction] = useActionState(saveCharge, undefined);
   const [payState, payAction] = useActionState(setPayment, undefined);
@@ -58,7 +65,12 @@ function Inner({ ticket: t }: { ticket: TicketFull }) {
               <Alert>{payState.error}</Alert>
             </div>
           )}
-          {paid ? (
+          {!editable ? (
+            <p className={paid ? "text-sm font-medium text-emerald-700" : "text-sm font-medium text-orange-700"}>
+              {paid ? `Payment received ${fmtDateTime(t.payment_received_at!)}` : "Payment not received yet"}
+              <span className="block text-xs font-normal text-slate-500">Recorded by the area rep</span>
+            </p>
+          ) : paid ? (
             <div className="flex items-start justify-between gap-3">
               <div className="text-sm">
                 <p className="font-medium text-emerald-700">Payment received</p>

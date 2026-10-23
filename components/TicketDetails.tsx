@@ -34,6 +34,7 @@ export function TicketDetails({ ticket, showStore = true }: { ticket: TicketFull
           {t.store.address && <span className="block text-xs text-slate-500">{t.store.address}</span>}
         </Row>
       )}
+      {showStore && <Row label="Area rep">{t.store.area_rep?.full_name ?? <span className="text-slate-500">None (managers review)</span>}</Row>}
       <Row label="Reported by">{t.store_manager_name} (store manager)</Row>
       <Row label="Logged by">
         {t.creator?.full_name ?? "—"} <span className="text-slate-500">· {fmtDateTime(t.created_at)}</span>

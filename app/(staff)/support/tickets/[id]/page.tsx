@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, FileText } from "lucide-react";
 import { getActiveDispatchers, getTicket } from "@/lib/tickets/queries";
+import { getProfile } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { ActionPanel } from "@/components/ActionPanel";
 import { ChargePanel } from "@/components/ChargePanel";
@@ -9,13 +10,25 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { StageProgress } from "@/components/StageProgress";
 import { TicketDetails } from "@/components/TicketDetails";
 import { Timeline } from "@/components/Timeline";
-import { Card, CardHeader, buttonClass } from "@/components/ui";
+import { Alert, Card, CardHeader, buttonClass } from "@/components/ui";
 
-export default async function SupportTicket({ params }: { params: Promise<{ id: string }> }) {
+export default async function SupportTicket({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ created?: string }>;
+}) {
   const { id } = await params;
-  const [result, dispatchers] = await Promise.all([getTicket(id), getActiveDispatchers()]);
-  if (!result) notFound();
+  const { created } = await searchParams;
+  const [result, dispatchers, profile] = await Promise.all([getTicket(id), getActiveDispatchers(), getProfile()]);
+  if (!result || !profile) notFound();
   const { ticket, events } = result;
+
+  // Mirrors the database rules in can_review_store() / is_staff().
+  const canReview = profile.role === "manager" || (profile.role === "area_rep" && ticket.store.area_rep_id === profile.id);
+  const canLogistics = profile.role === "support" || profile.role === "manager";
+  const reviewer = ticket.store.area_rep ? `${ticket.store.area_rep.full_name} (area rep)` : "A manager";
 
   const slips = [
     ticket.pickup_dispatcher_id && { type: "pickup", label: "Pickup slip", who: ticket.pickup?.name },
@@ -27,6 +40,14 @@ export default async function SupportTicket({ params }: { params: Promise<{ id: 
       <Link href="/support" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
         <ChevronLeft className="size-4" aria-hidden /> Ticket queue
       </Link>
+
+      {created && (
+        <div className="mb-4">
+          <Alert tone="success">
+            Ticket <strong>{ticket.ticket_no}</strong> logged for {ticket.store.name}.
+          </Alert>
+        </div>
+      )}
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -61,12 +82,19 @@ export default async function SupportTicket({ params }: { params: Promise<{ id: 
 
         <div className="space-y-6 lg:sticky lg:top-8 lg:self-start">
           <Card className="p-5">
-            <ActionPanel ticketId={ticket.id} status={ticket.status} dispatchers={dispatchers} />
+            <ActionPanel
+              ticketId={ticket.id}
+              status={ticket.status}
+              dispatchers={dispatchers}
+              canReview={canReview}
+              canLogistics={canLogistics}
+              reviewer={reviewer}
+            />
           </Card>
           {ticket.under_warranty !== null && (
             <Card>
               <CardHeader title="Warranty & payment" />
-              <ChargePanel ticket={ticket} />
+              <ChargePanel ticket={ticket} editable={canReview} />
             </Card>
           )}
           {slips.length > 0 && (

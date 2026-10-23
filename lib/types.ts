@@ -1,4 +1,4 @@
-export type Role = "rep" | "support" | "manager";
+export type Role = "rep" | "area_rep" | "support" | "manager";
 export type ProductCategory = "fan" | "microwave" | "blender";
 export type TicketStatus =
   | "SUBMITTED"
@@ -19,6 +19,8 @@ export type Store = {
   city: string;
   address: string | null;
   manager_contact: string | null;
+  /** Area rep who reviews this store's tickets (null = managers review). */
+  area_rep_id: string | null;
 };
 
 export type ProductModel = {
@@ -76,7 +78,7 @@ export type Ticket = {
 
 /** Ticket with related rows, as loaded by getTicket(). */
 export type TicketFull = Ticket & {
-  store: Store;
+  store: Store & { area_rep: { full_name: string } | null };
   product: ProductModel;
   pickup: Dispatcher | null;
   ret: Dispatcher | null;

@@ -3,16 +3,30 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getProfile } from "@/lib/auth";
+import { getMyStores, getProfile } from "@/lib/auth";
 import type { TicketStatus } from "@/lib/types";
 import type { FormState } from "./auth";
 
 const text = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
-/** Store rep logs a new complaint for their store. */
+/**
+ * Log a new complaint. Store reps log for their own store; area reps for any store
+ * they cover (e.g. when a retail store manager calls them); managers for any store.
+ */
 export async function createTicket(_prev: FormState, formData: FormData): Promise<FormState> {
   const profile = await getProfile();
-  if (!profile || profile.role !== "rep" || !profile.store_id) return { error: "Only store reps can log complaints." };
+  if (!profile) return { error: "Please sign in again." };
+
+  let storeId: string | null = null;
+  if (profile.role === "rep") {
+    storeId = profile.store_id;
+  } else if (profile.role === "area_rep" || profile.role === "manager") {
+    const chosen = text(formData, "store_id");
+    const mine = await getMyStores();
+    if (!mine.some((s) => s.id === chosen)) return { error: "Choose one of your stores." };
+    storeId = chosen;
+  }
+  if (!storeId) return { error: "You can't log complaints with this account." };
 
   const product_model_id = text(formData, "product_model_id");
   const serial_no = text(formData, "serial_no").toUpperCase();
@@ -26,7 +40,7 @@ export async function createTicket(_prev: FormState, formData: FormData): Promis
   const { data, error } = await supabase
     .from("tickets")
     .insert({
-      store_id: profile.store_id,
+      store_id: storeId,
       product_model_id,
       serial_no,
       issue_description,
@@ -37,8 +51,12 @@ export async function createTicket(_prev: FormState, formData: FormData): Promis
     .single();
   if (error || !data) return { error: error?.message ?? "Could not save the complaint." };
 
-  revalidatePath("/rep");
-  redirect(`/rep/tickets/${data.id}?created=1`);
+  if (profile.role === "rep") {
+    revalidatePath("/rep");
+    redirect(`/rep/tickets/${data.id}?created=1`);
+  }
+  revalidatePath("/support");
+  redirect(`/support/tickets/${data.id}?created=1`);
 }
 
 /** Support moves a ticket to its next step. Rules live in the transition_ticket() DB function. */

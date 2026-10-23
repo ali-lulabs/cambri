@@ -5,9 +5,18 @@ import { createTicket } from "@/app/actions/tickets";
 import { Alert, Field, Input, LinkButton, Select, Textarea } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CATEGORY_LABEL } from "@/lib/tickets/status";
-import type { ProductModel } from "@/lib/types";
+import type { ProductModel, Store } from "@/lib/types";
 
-export function ComplaintForm({ products }: { products: ProductModel[] }) {
+export function ComplaintForm({
+  products,
+  stores,
+  cancelHref = "/rep",
+}: {
+  products: ProductModel[];
+  /** Area reps and managers choose the store; store reps log for their own. */
+  stores?: Pick<Store, "id" | "name" | "city">[];
+  cancelHref?: string;
+}) {
   const [state, action] = useActionState(createTicket, undefined);
   const groups = (Object.keys(CATEGORY_LABEL) as (keyof typeof CATEGORY_LABEL)[]).map((c) => ({
     category: c,
@@ -17,6 +26,21 @@ export function ComplaintForm({ products }: { products: ProductModel[] }) {
   return (
     <form action={action} className="space-y-5">
       {state?.error && <Alert>{state.error}</Alert>}
+
+      {stores && (
+        <Field label="Store" htmlFor="store_id">
+          <Select id="store_id" name="store_id" required defaultValue={stores.length === 1 ? stores[0].id : ""}>
+            <option value="" disabled>
+              Choose a store…
+            </option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} · {s.city}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
 
       <Field label="Product model" htmlFor="product_model_id">
         <Select id="product_model_id" name="product_model_id" required defaultValue="">
@@ -65,7 +89,7 @@ export function ComplaintForm({ products }: { products: ProductModel[] }) {
       </Field>
 
       <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-        <LinkButton href="/rep" variant="secondary" size="lg">
+        <LinkButton href={cancelHref} variant="secondary" size="lg">
           Cancel
         </LinkButton>
         <SubmitButton size="lg" pendingText="Submitting…">

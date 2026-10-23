@@ -6,7 +6,7 @@ import { fmtRs, timeAgo } from "@/lib/format";
 import type { ProductCategory, Role, TicketStatus } from "@/lib/types";
 import { BarList } from "@/components/BarList";
 import { StatTile } from "@/components/StatTile";
-import { Card, CardHeader, PageHeader } from "@/components/ui";
+import { Alert, Card, CardHeader, PageHeader } from "@/components/ui";
 
 type Row = {
   status: TicketStatus;
@@ -49,7 +49,7 @@ function countBy<T>(rows: T[], key: (r: T) => string) {
 export default async function ManagerDashboard() {
   await requireRole(["manager"]);
   const supabase = await createClient();
-  const [{ data: ticketData }, { data: eventData }] = await Promise.all([
+  const [{ data: ticketData }, { data: eventData }, { data: uncovered }] = await Promise.all([
     supabase
       .from("tickets")
       .select(
@@ -60,6 +60,7 @@ export default async function ManagerDashboard() {
       .select("id, to_status, kind, note, created_at, actor:profiles(full_name, role), ticket:tickets(id, ticket_no)")
       .order("created_at", { ascending: false })
       .limit(12),
+    supabase.from("stores").select("id, name").is("area_rep_id", null).order("name"),
   ]);
   const rows = (ticketData ?? []) as unknown as Row[];
   const events = (eventData ?? []) as unknown as EventRow[];
@@ -91,6 +92,18 @@ export default async function ManagerDashboard() {
   return (
     <>
       <PageHeader title="Dashboard" subtitle="Returns across all stores, live from the ticket log." />
+
+      {!!uncovered?.length && (
+        <div className="mb-4">
+          <Alert tone="info">
+            {uncovered.length === 1 ? "1 store has" : `${uncovered.length} stores have`} no area rep, so managers review their
+            tickets: {uncovered.map((s) => s.name).join(", ")}.{" "}
+            <Link href="/admin/stores" className="font-medium underline">
+              Assign area reps
+            </Link>
+          </Alert>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-5">
         <StatTile label="Open returns" value={open.length} sub={`${rows.length} logged in total`} />

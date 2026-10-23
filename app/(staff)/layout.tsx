@@ -1,12 +1,11 @@
-import { requireRole } from "@/lib/auth";
+import { STAFF_ROLES, requireRole } from "@/lib/auth";
+import { ROLE_LABEL } from "@/lib/roles";
 import { Logo } from "@/components/Logo";
 import { SignOutButton } from "@/components/SignOutButton";
 import { StaffNav } from "./StaffNav";
 
-const ROLE_LABEL = { support: "Support team", manager: "Manager", rep: "Store rep" } as const;
-
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
-  const profile = await requireRole(["support", "manager"]);
+  const profile = await requireRole(STAFF_ROLES);
   return (
     <div className="min-h-dvh lg:flex">
       {/* Desktop sidebar */}

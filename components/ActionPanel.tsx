@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, type ReactNode } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Clock } from "lucide-react";
 import { approveTicket, transitionTicket } from "@/app/actions/tickets";
 import { WarrantyFields } from "./WarrantyFields";
 import type { Dispatcher, TicketStatus } from "@/lib/types";
@@ -10,10 +10,45 @@ import { SubmitButton } from "./SubmitButton";
 
 type Props = { ticketId: string; status: TicketStatus; dispatchers: Dispatcher[] };
 
-/** Shows only the actions that are valid for the ticket's current step. */
-export function ActionPanel({ ticketId, status, dispatchers }: Props) {
+/**
+ * Shows only the actions valid for the ticket's current step and the viewer's role:
+ * review (approve/reject) for the store's area rep or a manager; every later step
+ * for support or a manager. Others see who the ticket is waiting on.
+ */
+export function ActionPanel({
+  ticketId,
+  status,
+  dispatchers,
+  canReview,
+  canLogistics,
+  reviewer,
+}: Props & { canReview: boolean; canLogistics: boolean; reviewer: string }) {
+  const closed = status === "DELIVERED" || status === "REJECTED";
+  if (!closed && status === "SUBMITTED" && !canReview) {
+    return <Waiting title="Waiting for review" body={`${reviewer} will approve or reject this request.`} />;
+  }
+  if (!closed && status !== "SUBMITTED" && !canLogistics) {
+    return (
+      <Waiting
+        title="With the support team"
+        body="Support arranges pickup, records the repair and sends the unit back. Each step will appear here."
+      />
+    );
+  }
   // Remount on status change so stale errors/inputs are cleared.
   return <Steps key={status} ticketId={ticketId} status={status} dispatchers={dispatchers} />;
+}
+
+function Waiting({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="flex items-start gap-3 text-sm">
+      <Clock className="mt-0.5 size-5 shrink-0 text-slate-400" aria-hidden />
+      <div>
+        <p className="font-medium text-slate-900">{title}</p>
+        <p className="text-slate-500">{body}</p>
+      </div>
+    </div>
+  );
 }
 
 function Steps({ ticketId, status, dispatchers }: Props) {

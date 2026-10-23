@@ -9,8 +9,9 @@ Every step records who did it and when.
 | Role | Where | Can do |
 |---|---|---|
 | Store rep | `/rep` (phone) | Log complaints for their store, follow progress |
-| Support | `/support` | Review, assign dispatchers, print slips, move tickets forward |
-| Manager | `/manager`, `/admin` | Everything support can do, plus dashboard, stores, products, dispatchers and users |
+| Area rep | `/support` | Covers stores assigned by a manager (one area rep per store). Logs tickets for those stores, approves or rejects, sets warranty and charge, records payment |
+| Support | `/support` | In-house plant team. Sees all stores; assigns dispatchers, prints slips, records pickup, repair or replacement, and return |
+| Manager | everywhere, `/manager`, `/admin` | Everything, including the dashboard and user, store, product and dispatcher admin. Reviews tickets for stores without an area rep |
 | Anyone with a slip | `/verify/<token>` | Scan the QR code to check the slip is genuine and see its live status |
 
 Stack: Next.js 15, Supabase (Postgres, Auth, row-level security), Netlify.
@@ -31,7 +32,8 @@ npm run dev                 # http://localhost:3000, connected to hosted Supabas
 Demo logins (password `Demo1234!`):
 
 - `rep.central@example.com`: store rep at HomeMax Central (also `rep.riverside@`, `rep.valuehub@`, `rep.north@`)
-- `support@example.com`: support team
+- `area.central@example.com`: area rep for HomeMax Central and Riverside (also `area.north@` for ValueHub Mall and MegaStore North)
+- `support@example.com`: support (plant) team
 - `manager@example.com`: manager
 
 `npm run seed -- --reset` deletes all tickets and recreates the sample set.

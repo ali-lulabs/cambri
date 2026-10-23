@@ -1,9 +1,9 @@
 import { EVENT_LABEL, STATUS_TONE } from "@/lib/tickets/status";
 import { fmtDateTime } from "@/lib/format";
 import type { TicketEvent } from "@/lib/types";
+import { ROLE_LABEL } from "@/lib/roles";
 import { cn } from "./ui";
 
-const ROLE_LABEL = { rep: "Store rep", support: "Support", manager: "Manager" } as const;
 const DOT: Record<string, string> = {
   amber: "bg-amber-500",
   blue: "bg-blue-500",

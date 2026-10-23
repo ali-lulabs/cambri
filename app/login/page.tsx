@@ -6,6 +6,7 @@ import { LoginForm } from "./LoginForm";
 
 const DEMO_ACCOUNTS = [
   { label: "Store rep", email: "rep.central@example.com" },
+  { label: "Area rep", email: "area.central@example.com" },
   { label: "Support", email: "support@example.com" },
   { label: "Manager", email: "manager@example.com" },
 ];

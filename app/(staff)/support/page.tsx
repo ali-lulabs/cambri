@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getMyStores, getProfile } from "@/lib/auth";
 import { TICKET_LIST_SELECT, type TicketListRow } from "@/lib/tickets/queries";
 import { QUEUE_TABS } from "@/lib/tickets/status";
 import { fmtDateTime, timeAgo } from "@/lib/format";
@@ -8,17 +9,23 @@ import type { TicketStatus } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ChargeBadge } from "@/components/ChargeBadge";
 import { TicketCard } from "@/components/TicketCard";
-import { Card, EmptyState, Input, PageHeader, cn } from "@/components/ui";
+import { Alert, Card, EmptyState, Input, PageHeader, cn } from "@/components/ui";
 
 type TabKey = (typeof QUEUE_TABS)[number]["key"];
 
 export default async function SupportQueue({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string }> }) {
   const sp = await searchParams;
-  const tabKey = (QUEUE_TABS.some((t) => t.key === sp.tab) ? sp.tab : "review") as TabKey;
+  const profile = (await getProfile())!;
+  const role = profile.role;
+  // Support doesn't handle payments; area reps don't see the plant's queue first.
+  const tabs = QUEUE_TABS.filter((t) => t.key !== "unpaid" || role !== "support");
+  const defaultTab: TabKey = role === "support" ? "pickup" : "review";
+  const tabKey = (tabs.some((t) => t.key === sp.tab) ? sp.tab : defaultTab) as TabKey;
   const tab = QUEUE_TABS.find((t) => t.key === tabKey)!;
   const q = (sp.q ?? "").trim().replace(/[%,()]/g, "");
 
   const supabase = await createClient();
+  const myStores = role === "area_rep" ? await getMyStores() : [];
   const [{ data: all }, listRes] = await Promise.all([
     supabase.from("tickets").select("status, under_warranty, payment_received_at"),
     (() => {
@@ -47,12 +54,26 @@ export default async function SupportQueue({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Ticket queue" subtitle="Review new complaints and move each return to its next step." />
+      <PageHeader
+        title="Ticket queue"
+        subtitle={
+          role === "area_rep"
+            ? `Your stores: ${myStores.map((s) => s.name).join(", ") || "none yet"}`
+            : role === "support"
+              ? "All stores. Arrange pickups, record repairs and send units back."
+              : "All stores. Review new complaints and follow each return."
+        }
+      />
+      {role === "area_rep" && myStores.length === 0 && (
+        <div className="mb-4">
+          <Alert tone="info">No stores are assigned to you yet. Ask a manager to assign your stores.</Alert>
+        </div>
+      )}
 
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <div className="inline-flex gap-1 rounded-lg bg-slate-200/60 p-1">
-            {QUEUE_TABS.map((t) => (
+            {tabs.map((t) => (
               <Link
                 key={t.key}
                 href={href(t.key)}

@@ -86,6 +86,7 @@ export async function createUser(_prev: FormState, f: FormData): Promise<FormSta
   const store_id = text(f, "store_id") || null;
 
   if (!email || !full_name || !password || !role) return { error: "All fields are required." };
+  if (!["rep", "area_rep", "support", "manager"].includes(role)) return { error: "Choose a valid role." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
   if (role === "rep" && !store_id) return { error: "Store reps need a store." };
 
@@ -123,6 +124,37 @@ export async function deleteUser(_prev: FormState, f: FormData): Promise<FormSta
     return { ok: true, message: "User has ticket history, so their access was disabled instead of deleted." };
   }
   await admin.auth.admin.deleteUser(id);
+  revalidatePath("/admin/users");
+  return { ok: true };
+}
+
+/** Move a store rep to another store. */
+export async function moveRep(_prev: FormState, f: FormData): Promise<FormState> {
+  await assertManager();
+  const id = text(f, "id");
+  const store_id = text(f, "store_id");
+  if (!store_id) return { error: "Choose a store." };
+  const { data, error } = await createAdminClient()
+    .from("profiles")
+    .update({ store_id })
+    .eq("id", id)
+    .eq("role", "rep")
+    .select("id");
+  if (error) return { error: friendly(error.message) };
+  if (!data?.length) return { error: "Only store reps can be moved." };
+  revalidatePath("/admin/users");
+  return { ok: true };
+}
+
+/** Assign (or clear) the area rep who reviews a store's tickets. */
+export async function assignAreaRep(_prev: FormState, f: FormData): Promise<FormState> {
+  await assertManager();
+  const { error } = await (await createClient())
+    .from("stores")
+    .update({ area_rep_id: text(f, "area_rep_id") || null })
+    .eq("id", text(f, "id"));
+  if (error) return { error: friendly(error.message) };
+  revalidatePath("/admin/stores");
   revalidatePath("/admin/users");
   return { ok: true };
 }

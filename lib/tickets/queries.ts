@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Dispatcher, TicketEvent, TicketFull } from "@/lib/types";
 
 const TICKET_SELECT = `*,
-  store:stores(*),
+  store:stores(*, area_rep:profiles!stores_area_rep_id_fkey(full_name)),
   product:product_models(*),
   pickup:dispatchers!tickets_pickup_dispatcher_id_fkey(*),
   ret:dispatchers!tickets_return_dispatcher_id_fkey(*),
