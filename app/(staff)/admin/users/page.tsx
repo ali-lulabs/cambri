@@ -15,7 +15,7 @@ export default async function UsersAdmin() {
   const me = await getProfile();
   const supabase = await createClient();
   const [{ data: profiles }, { data: stores }, authUsers] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, email, role, store_id, store:stores(name, retailer, city)").order("role").order("full_name"),
+    supabase.from("profiles").select("id, full_name, email, role, store_id, store:stores!profiles_store_id_fkey(name, retailer, city)").order("role").order("full_name"),
     supabase.from("stores").select("id, name").order("name"),
     createAdminClient().auth.admin.listUsers({ perPage: 1000 }),
   ]);
