@@ -18,7 +18,7 @@ Stack: Next.js 15, Supabase (Postgres, Auth, row-level security), Netlify.
 
 ## Run the app
 
-The database lives on the hosted Supabase project **cambri** (`itocjjjmztvhlcahamrz`). Its schema is already applied from [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql). There is no local database.
+Live site: **https://national-comfort-service.netlify.app**. The database is the hosted Supabase project `vnebnxzofwjnmenkzzom` (US East, N. Virginia), with every file in [`supabase/migrations/`](supabase/migrations/) applied in order. There is no local database.
 
 Requires Node 20+.
 
@@ -40,17 +40,22 @@ Demo logins (password `Demo1234!`):
 
 ## Deploy (Supabase + Netlify)
 
-1. **Supabase:** the schema is already on the **cambri** project. For a fresh project, run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) in its SQL editor.
+1. **Supabase:** the schema is already on the live project. For a fresh project, run the files in [`supabase/migrations/`](supabase/migrations/) in order (`0001` → `0004`) in its SQL editor.
    Go to *Authentication → Sign In / Providers* and turn **off** "Allow new users to sign up". Only managers create accounts.
 2. **Seed:** put the project's URL, publishable key and service-role key in `.env.local`, then run `npm run seed`.
-3. **Netlify:** import the Git repo. The build settings come from `netlify.toml`. Add these environment variables:
+3. **Netlify:** the live site isn't connected to Git, so deploy it manually from this folder (once: `npx netlify-cli login`, then `npx netlify-cli link`):
+   ```
+   npx netlify-cli deploy --build --prod
+   ```
+   Build settings come from `netlify.toml`. The site needs these environment variables (`npx netlify-cli env:list`):
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY` (secret; used only on the server for the admin "Add user" screen)
    - `NEXT_PUBLIC_COMPANY_NAME`: shown in the header and on slips
    - `NEXT_PUBLIC_APP_TIMEZONE`, e.g. `Asia/Karachi`. Servers run on UTC, so set this.
-   - `NEXT_PUBLIC_SITE_URL=https://cambri-appliances.netlify.app`, the address slip QR codes open.
+   - `NEXT_PUBLIC_SITE_URL=https://national-comfort-service.netlify.app`, the address slip QR codes open.
    - Optional: `NEXT_PUBLIC_SHOW_DEMO_LOGINS=false` hides the demo-account hint on the login page.
 4. In Supabase *Authentication → URL Configuration*, set the Site URL to your Netlify URL.
+5. New Netlify projects start **private**. After the first deploy, click *Make public* (Project configuration → Access & security → Project visibility).
 
 ## Demo script (about 5 minutes)
 
